@@ -8,6 +8,7 @@
 "stm32f405rg_test1\stm32f4xx_it.o"
 "stm32f405rg_test1\stm32f4xx_hal_msp.o"
 "stm32f405rg_test1\stm32f4xx_hal_timebase_tim.o"
+"stm32f405rg_test1\usart2_lcd.o"
 "stm32f405rg_test1\stm32f4xx_hal_rcc.o"
 "stm32f405rg_test1\stm32f4xx_hal_rcc_ex.o"
 "stm32f405rg_test1\stm32f4xx_hal_flash.o"

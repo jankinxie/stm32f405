@@ -24,7 +24,7 @@
 #include <stdio.h>
 #include "cmsis_os.h"
 
-#define USART3_DATA_SIZE  256
+#define USART_DATA_SIZE  256
 
 typedef struct {
     uint16_t DataLength;
@@ -33,16 +33,23 @@ typedef struct {
 
 typedef struct {
     uint16_t DataLength;
-    uint8_t RxBuffer[USART3_DATA_SIZE];
+    uint8_t RxBuffer[USART_DATA_SIZE];
 }USART_TYPE;
 
 static USART_TYPE Usart3;
 extern osMailQId USART3_MailId;
 
+static USART_TYPE Usart2;
+extern osMailQId USART2_MailId;
+
+
 /* USER CODE END 0 */
 
 UART_HandleTypeDef huart1;
+UART_HandleTypeDef huart2;
 UART_HandleTypeDef huart3;
+DMA_HandleTypeDef hdma_usart2_rx;
+DMA_HandleTypeDef hdma_usart2_tx;
 DMA_HandleTypeDef hdma_usart3_rx;
 DMA_HandleTypeDef hdma_usart3_tx;
 
@@ -60,6 +67,25 @@ void MX_USART1_UART_Init(void)
   huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   huart1.Init.OverSampling = UART_OVERSAMPLING_16;
   if (HAL_UART_Init(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+}
+/* USART2 init function */
+
+void MX_USART2_UART_Init(void)
+{
+
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 115200;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
   {
     Error_Handler();
   }
@@ -112,6 +138,70 @@ void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
   /* USER CODE BEGIN USART1_MspInit 1 */
 
   /* USER CODE END USART1_MspInit 1 */
+  }
+  else if(uartHandle->Instance==USART2)
+  {
+  /* USER CODE BEGIN USART2_MspInit 0 */
+
+  /* USER CODE END USART2_MspInit 0 */
+    /* USART2 clock enable */
+    __HAL_RCC_USART2_CLK_ENABLE();
+
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    /**USART2 GPIO Configuration
+    PA2     ------> USART2_TX
+    PA3     ------> USART2_RX
+    */
+    GPIO_InitStruct.Pin = GPIO_PIN_2|GPIO_PIN_3;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF7_USART2;
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+    /* USART2 DMA Init */
+    /* USART2_RX Init */
+    hdma_usart2_rx.Instance = DMA1_Stream5;
+    hdma_usart2_rx.Init.Channel = DMA_CHANNEL_4;
+    hdma_usart2_rx.Init.Direction = DMA_PERIPH_TO_MEMORY;
+    hdma_usart2_rx.Init.PeriphInc = DMA_PINC_DISABLE;
+    hdma_usart2_rx.Init.MemInc = DMA_MINC_ENABLE;
+    hdma_usart2_rx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+    hdma_usart2_rx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+    hdma_usart2_rx.Init.Mode = DMA_NORMAL;
+    hdma_usart2_rx.Init.Priority = DMA_PRIORITY_HIGH;
+    hdma_usart2_rx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+    if (HAL_DMA_Init(&hdma_usart2_rx) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+    __HAL_LINKDMA(uartHandle,hdmarx,hdma_usart2_rx);
+
+    /* USART2_TX Init */
+    hdma_usart2_tx.Instance = DMA1_Stream6;
+    hdma_usart2_tx.Init.Channel = DMA_CHANNEL_4;
+    hdma_usart2_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;
+    hdma_usart2_tx.Init.PeriphInc = DMA_PINC_DISABLE;
+    hdma_usart2_tx.Init.MemInc = DMA_MINC_ENABLE;
+    hdma_usart2_tx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+    hdma_usart2_tx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+    hdma_usart2_tx.Init.Mode = DMA_NORMAL;
+    hdma_usart2_tx.Init.Priority = DMA_PRIORITY_HIGH;
+    hdma_usart2_tx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+    if (HAL_DMA_Init(&hdma_usart2_tx) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+    __HAL_LINKDMA(uartHandle,hdmatx,hdma_usart2_tx);
+
+    /* USART2 interrupt Init */
+    HAL_NVIC_SetPriority(USART2_IRQn, 5, 0);
+    HAL_NVIC_EnableIRQ(USART2_IRQn);
+  /* USER CODE BEGIN USART2_MspInit 1 */
+
+  /* USER CODE END USART2_MspInit 1 */
   }
   else if(uartHandle->Instance==USART3)
   {
@@ -200,6 +290,30 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
 
   /* USER CODE END USART1_MspDeInit 1 */
   }
+  else if(uartHandle->Instance==USART2)
+  {
+  /* USER CODE BEGIN USART2_MspDeInit 0 */
+
+  /* USER CODE END USART2_MspDeInit 0 */
+    /* Peripheral clock disable */
+    __HAL_RCC_USART2_CLK_DISABLE();
+
+    /**USART2 GPIO Configuration
+    PA2     ------> USART2_TX
+    PA3     ------> USART2_RX
+    */
+    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_2|GPIO_PIN_3);
+
+    /* USART2 DMA DeInit */
+    HAL_DMA_DeInit(uartHandle->hdmarx);
+    HAL_DMA_DeInit(uartHandle->hdmatx);
+
+    /* USART2 interrupt Deinit */
+    HAL_NVIC_DisableIRQ(USART2_IRQn);
+  /* USER CODE BEGIN USART2_MspDeInit 1 */
+
+  /* USER CODE END USART2_MspDeInit 1 */
+  }
   else if(uartHandle->Instance==USART3)
   {
   /* USER CODE BEGIN USART3_MspDeInit 0 */
@@ -228,6 +342,51 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
 
 /* USER CODE BEGIN 1 */
 
+/****************usart2*******************/
+
+void USER_USART2_IdleCallback(void)
+{
+    Amail_TypeDef *USART2_TxMail;
+    BaseType_t xHigherPriorityTaskWoken;
+ 
+    if(__HAL_UART_GET_FLAG(&huart2,UART_FLAG_IDLE) != RESET)
+    { 
+      __HAL_UART_CLEAR_IDLEFLAG(&huart2);
+   
+      HAL_UART_DMAStop(&huart2); 
+      USART2_TxMail = osMailAlloc(USART2_MailId, 0); //为邮箱申请内存
+      USART2_TxMail->DataLength = USART_DATA_SIZE - __HAL_DMA_GET_COUNTER(&hdma_usart2_rx);	//获取接收数据长度
+      HAL_UART_Receive_DMA(&huart2,Usart2.RxBuffer,USART_DATA_SIZE);	//获取DMA中缓存的串口数据
+      USART2_TxMail->DataReceive = Usart2.RxBuffer; //传递缓存串口数据的指针
+      osMailPut(USART2_MailId, USART2_TxMail);    //通过邮箱发送串口数据信息
+     }
+		
+	 portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+}
+ 
+void HAL_UART2_TxCpltCallback(UART_HandleTypeDef *huart )
+{
+	if(huart == &huart2)
+	{
+		;	//发送完成中断
+	}
+}
+ 
+void BSP_USART2_Init(void)
+{
+	__HAL_UART_ENABLE_IT(&huart2,UART_IT_TC);
+	
+	__HAL_UART_ENABLE_IT(&huart2,UART_IT_IDLE); 
+	HAL_UART_Receive_DMA(&huart2,Usart2.RxBuffer,USART_DATA_SIZE);
+};
+
+void BSP_USART2_SendData(uint8_t *TxBuff,uint16_t BuffLen)
+{
+	__HAL_DMA_CLEAR_FLAG(&hdma_usart2_tx,DMA_FLAG_TCIF2_6);
+	HAL_UART_Transmit_DMA(&huart2,TxBuff,BuffLen);					
+}
+
+/****************usart3*******************/
 void USER_USART3_IdleCallback(void)
 {
 	Amail_TypeDef *USART3_TxMail;
@@ -239,9 +398,8 @@ void USER_USART3_IdleCallback(void)
  
 		HAL_UART_DMAStop(&huart3); 
 		USART3_TxMail = osMailAlloc(USART3_MailId, 0); //为邮箱申请内存
-		USART3_TxMail->DataLength = USART3_DATA_SIZE- 
-        __HAL_DMA_GET_COUNTER(&hdma_usart3_rx);	//获取接收数据长度
-		HAL_UART_Receive_DMA(&huart3,Usart3.RxBuffer,USART3_DATA_SIZE);	//获取DMA中缓存的串口数据
+		USART3_TxMail->DataLength = USART_DATA_SIZE- __HAL_DMA_GET_COUNTER(&hdma_usart3_rx);	//获取接收数据长度
+		HAL_UART_Receive_DMA(&huart3,Usart3.RxBuffer,USART_DATA_SIZE);	//获取DMA中缓存的串口数据
 		USART3_TxMail->DataReceive = Usart3.RxBuffer; //传递缓存串口数据的指针
 		osMailPut(USART3_MailId, USART3_TxMail);    //通过邮箱发送串口数据信息
      }
@@ -249,7 +407,7 @@ void USER_USART3_IdleCallback(void)
 	 portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
  
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart )
+void HAL_UART3_TxCpltCallback(UART_HandleTypeDef *huart )
 {
 	if(huart == &huart3)
 	{
@@ -257,14 +415,20 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart )
 	}
 }
  
-void BSP_USART_Init(void)
+void BSP_USART3_Init(void)
 {
 	__HAL_UART_ENABLE_IT(&huart3,UART_IT_TC);
 	
 	__HAL_UART_ENABLE_IT(&huart3,UART_IT_IDLE); 
-	HAL_UART_Receive_DMA(&huart3,Usart3.RxBuffer,USART3_DATA_SIZE);
+	HAL_UART_Receive_DMA(&huart3,Usart3.RxBuffer,USART_DATA_SIZE);
 };
 
+
+void BSP_USART3_SendData(uint8_t *TxBuff,uint16_t BuffLen)
+{
+	__HAL_DMA_CLEAR_FLAG(&hdma_usart3_tx,DMA_FLAG_TCIF3_7);
+	HAL_UART_Transmit_DMA(&huart3,TxBuff,BuffLen);					
+}
 
 ///重定向c库函数printf到串口DEBUG_USART，重定向后可使用printf函数
 int fputc(int ch, FILE *f)

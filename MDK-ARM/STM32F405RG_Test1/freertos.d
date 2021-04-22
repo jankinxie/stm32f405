@@ -47,3 +47,4 @@ stm32f405rg_test1\freertos.o: ../Middlewares/Third_Party/FreeRTOS/Source/include
 stm32f405rg_test1\freertos.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/event_groups.h
 stm32f405rg_test1\freertos.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
 stm32f405rg_test1\freertos.o: ../Core/Inc/usart.h
+stm32f405rg_test1\freertos.o: ..\User\lcd\usart2_lcd.h

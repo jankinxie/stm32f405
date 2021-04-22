@@ -31,6 +31,7 @@
 /* USER CODE END Includes */
 
 extern UART_HandleTypeDef huart1;
+extern UART_HandleTypeDef huart2;
 extern UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN Private defines */
@@ -38,13 +39,21 @@ extern UART_HandleTypeDef huart3;
 /* USER CODE END Private defines */
 
 void MX_USART1_UART_Init(void);
+void MX_USART2_UART_Init(void);
 void MX_USART3_UART_Init(void);
 
 /* USER CODE BEGIN Prototypes */
-void USER_USART3_IdleCallback(void);
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart );
-void BSP_USART_Init(void);
+void USER_USART2_IdleCallback(void);
+void HAL_UART2_TxCpltCallback(UART_HandleTypeDef *huart );
+void BSP_USART2_Init(void);
+void BSP_USART2_SendData(uint8_t *TxBuff,uint16_t BuffLen);
 
+
+
+void USER_USART3_IdleCallback(void);
+void HAL_UART3_TxCpltCallback(UART_HandleTypeDef *huart );
+void BSP_USART3_Init(void);
+void BSP_USART3_SendData(uint8_t *TxBuff,uint16_t BuffLen);
 
 /* USER CODE END Prototypes */
 

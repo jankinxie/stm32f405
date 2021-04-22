@@ -28,6 +28,8 @@
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include "usart.h"
+#include "usart2_lcd.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -52,17 +54,19 @@
 #define MAIL_SIZE        (uint32_t) 4
  
 typedef struct { 
-    uint16_t DataLength;
-	uint8_t *DataReceive;
+   uint16_t DataLength;
+	 uint8_t *DataReceive;
 } Amail_TypeDef;
  
+osMailQId USART2_MailId;  //创建串口2邮箱信息
 osMailQId USART3_MailId;
- 
-/* USER CODE END Variables */
 
+
+ 
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
 osThreadId USART3_DataProcHandle;
+osThreadId USART2_DataProcHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -71,6 +75,7 @@ osThreadId USART3_DataProcHandle;
 
 void StartDefaultTask(void const * argument);
 void USART3_DataProcessTask(void const * argument);
+void USART2_DataProcessTask(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -115,6 +120,10 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
   
+  //初始化串口2消息邮箱的ID号
+  osMailQDef(Usart2MailId, MAIL_SIZE, Amail_TypeDef); /* Define mail queue */
+  USART2_MailId = osMailCreate(osMailQ(Usart2MailId), NULL); /* create mail queue */
+
   osMailQDef(Usart3MailId, MAIL_SIZE, Amail_TypeDef); /* Define mail queue */
   USART3_MailId = osMailCreate(osMailQ(Usart3MailId), NULL); /* create mail queue */
 
@@ -128,6 +137,10 @@ void MX_FREERTOS_Init(void) {
   /* definition and creation of USART3_DataProc */
   osThreadDef(USART3_DataProc, USART3_DataProcessTask, osPriorityIdle, 0, 128);
   USART3_DataProcHandle = osThreadCreate(osThread(USART3_DataProc), NULL);
+
+  /* definition and creation of USART2_DataProc */
+  osThreadDef(USART2_DataProc, USART2_DataProcessTask, osPriorityIdle, 0, 128);
+  USART2_DataProcHandle = osThreadCreate(osThread(USART2_DataProc), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -162,37 +175,82 @@ void StartDefaultTask(void const * argument)
 /* USER CODE END Header_USART3_DataProcessTask */
 void USART3_DataProcessTask(void const * argument)
 {
-
-	osEvent USART3_Event;
-	Amail_TypeDef *USART3_RxMail;
-	
-	static uint8_t *RxBuff;
-	static uint8_t RxLength = 0;
-	
-	RxBuff = pvPortMalloc(256);
-  BSP_USART_Init();
   /* USER CODE BEGIN USART3_DataProcessTask */
+  
   /* Infinite loop */
+  osEvent USART3_Event;
+  Amail_TypeDef *USART3_RxMail;
+  
+  static uint8_t *USART3_RxBuff;
+  static uint8_t USART3_RxLength = 0;
+  
+  USART3_RxBuff = pvPortMalloc(256);
+  BSP_USART3_Init();
   for(;;)
   {
     USART3_Event = osMailGet(USART3_MailId, 0);   //等待邮箱发送数据
 		if(USART3_Event.status == osEventMail)
 		{
-		    USART3_RxMail = USART3_Event.value.p;     //获取邮箱中的数据        
+		  USART3_RxMail = USART3_Event.value.p;     //获取邮箱中的数据        
 			
-			RxLength = USART3_RxMail->DataLength;
-			RxBuff = USART3_RxMail->DataReceive;
+			USART3_RxLength = USART3_RxMail->DataLength;
+			USART3_RxBuff = USART3_RxMail->DataReceive;
 			osMailFree(USART3_MailId, USART3_RxMail);  //释放在串口空闲中断中申请的邮箱内存
 			
-      printf("Usart3 Receive Data len：%d\r\n",RxLength);
-			for(uint8_t i=0;i<RxLength;i++)
+      printf("Usart3 Receive Data len：%d\r\n",USART3_RxLength);
+      BSP_USART3_SendData(USART3_RxBuff,USART3_RxLength);
+			for(uint8_t i=0;i<USART3_RxLength;i++)
 			{
-				printf("%x\r\n",RxBuff[i]);
+				printf("%x\r\n",USART3_RxBuff[i]);
 			}
 		}
     osDelay(1);
   }
   /* USER CODE END USART3_DataProcessTask */
+}
+
+/* USER CODE BEGIN Header_USART2_DataProcessTask */
+/**
+* @brief Function implementing the USART2_DataProc thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_USART2_DataProcessTask */
+void USART2_DataProcessTask(void const * argument)
+{
+
+  /* USER CODE BEGIN USART2_DataProcessTask */
+  /* Infinite loop */
+  osEvent USART2_Event;
+	Amail_TypeDef *USART2_RxMail;
+	
+	static uint8_t *USART2_RxBuff;
+	static uint8_t USART2_RxLength = 0;
+	
+	USART2_RxBuff = pvPortMalloc(256);
+  BSP_USART2_Init();
+  for(;;)
+  {
+    USART2_Event = osMailGet(USART2_MailId, 0);   //等待邮箱发送数据
+		if(USART2_Event.status == osEventMail)
+		{
+		  USART2_RxMail = USART2_Event.value.p;     //获取邮箱中的数据        
+			
+			USART2_RxLength = USART2_RxMail->DataLength;
+			USART2_RxBuff = USART2_RxMail->DataReceive;
+			osMailFree(USART2_MailId, USART2_RxMail);  //释放在串口空闲中断中申请的邮箱内存
+			
+      printf("Usart2 Receive Data len：%d\r\n",USART2_RxLength);
+      BSP_USART2_SendData(USART2_RxBuff,USART2_RxLength);
+      Hand_Lcd_Data(USART2_RxBuff,USART2_RxLength);
+			for(uint8_t i=0;i<USART2_RxLength;i++)
+			{
+				printf("%x\r\n",USART2_RxBuff[i]);
+			}
+     }
+     osDelay(1);
+  }
+  /* USER CODE END USART2_DataProcessTask */
 }
 
 /* Private application code --------------------------------------------------*/
